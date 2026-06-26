@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WINDAGE CALC // ARMA REFORGER (SCOTS)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+
+  :root {
+    --bg:      #0a0d0a;
+    --panel:   #0f1410;
+    --border:  #1e2b1e;
+    --accent:  #4cff6e;
+    --accent2: #a0ff44;
+    --dim:     #2a3d2a;
+    --text:    #c8e6c8;
+    --muted:   #5a7a5a;
+    --warn:    #ffcc44;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .container { width: 100%; max-width: 560px; }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+  }
+  header h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 1.4rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  header span {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .panel::before {
+    content: attr(data-label);
+    position: absolute;
+    top: -9px; left: 14px;
+    background: var(--panel);
+    padding: 0 8px;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ── Ammo selector ── */
+  .ammo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .ammo-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    cursor: pointer;
+    padding: 8px 4px;
+    text-align: center;
+    transition: border-color 0.1s, color 0.1s, background 0.1s;
+    user-select: none;
+  }
+  .ammo-btn .gun  { font-size: 0.75rem; color: var(--text); display: block; }
+  .ammo-btn .ammo { font-size: 0.58rem; color: var(--muted); display: block; margin-top: 2px; }
+  .ammo-btn:hover { border-color: var(--dim); }
+  .ammo-btn.active {
+    background: var(--dim);
+    border-color: var(--accent);
+    box-shadow: 0 0 6px rgba(76,255,110,0.2);
+  }
+  .ammo-btn.active .gun  { color: var(--accent); }
+  .ammo-btn.active .ammo { color: var(--accent2); }
+
+  /* ── Wind panel ── */
+  .wind-panel-inner {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .wind-dir-group { flex: 1; }
+  .wind-dir-group > .field-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .dir-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+  }
+  .dir-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    padding: 7px 4px;
+    cursor: pointer;
+    text-align: center;
+    letter-spacing: 0.05em;
+    transition: border-color 0.1s, color 0.1s, background 0.1s;
+    user-select: none;
+  }
+  .dir-btn:hover  { border-color: var(--dim); color: var(--text); }
+  .dir-btn.active {
+    background: var(--dim);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 6px rgba(76,255,110,0.2);
+  }
+  .wind-speed-group { flex-shrink: 0; width: 110px; }
+
+  /* ── Fields ── */
+  .field label {
+    display: block;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .field .input-row {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .field .input-row:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .field input[type="number"] {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--accent2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.1rem;
+    padding: 8px 10px;
+    width: 100%;
+  }
+  .field input[type="number"]::-webkit-inner-spin-button,
+  .field input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .field .unit {
+    font-size: 0.6rem;
+    color: var(--muted);
+    padding: 0 10px;
+    letter-spacing: 0.1em;
+    border-left: 1px solid var(--border);
+    white-space: nowrap;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Compass + shot ── */
+  .compass-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 4px;
+  }
+  .compass-wrap { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+  canvas#compass { display: block; }
+  .compass-inputs { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── Slider ── */
+  .slider-field label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+  .slider-field label span { color: var(--warn); font-size: 0.75rem; }
+
+  .range-entry {
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 4px;
+    color: var(--warn);
+  }
+  .range-entry input {
+    width: 64px;
+    padding: 0 2px 1px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid transparent;
+    outline: none;
+    color: var(--warn);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    text-align: right;
+    -moz-appearance: textfield;
+  }
+  .range-entry input:hover {
+    border-bottom-color: var(--dim);
+  }
+  .range-entry input:focus {
+    border-bottom-color: var(--warn);
+    box-shadow: 0 1px 0 rgba(255,204,68,0.25);
+  }
+  .range-entry input::-webkit-inner-spin-button,
+  .range-entry input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .range-entry .range-unit {
+    color: var(--warn);
+    font-size: 0.75rem;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%; height: 3px;
+    background: var(--dim);
+    outline: none; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--accent);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  /* ── Output ── */
+  .output-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+  }
+  .output-panel::before {
+    content: 'FIRE SOLUTION';
+    position: absolute;
+    top: -9px; left: 14px;
+    background: var(--panel);
+    padding: 0 8px;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+  }
+  .result-main {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .result-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    min-width: 80px;
+  }
+  .result-value {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 2.2rem;
+    color: var(--accent);
+    text-shadow: 0 0 12px rgba(76,255,110,0.4);
+    line-height: 1;
+  }
+  .result-unit { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em; }
+
+  .result-sub {
+    display: flex;
+    gap: 24px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .sub-item { display: flex; flex-direction: column; gap: 3px; }
+  .sub-item .lbl { font-size: 0.55rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+  .sub-item .val { font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 1.05rem; color: var(--text); }
+
+  .direction-indicator { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .dir-arrow {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    color: var(--accent);
+    min-width: 30px;
+    text-align: center;
+  }
+  .dir-text { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+  .zero-note { font-size: 0.62rem; color: var(--muted); margin-top: 8px; letter-spacing: 0.08em; }
+  .zero-note span { color: var(--accent2); }
+
+  footer {
+    margin-top: 14px;
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Windage Calc</h1>
+    <span>Arma Reforger // KoTH</span>
+  </header>
+
+  <!-- Ammo selector -->
+  <div class="panel" data-label="Gun / Ammo">
+    <div class="ammo-grid" id="ammoGrid"></div>
+  </div>
+
+  <!-- Wind -->
+  <div class="panel" data-label="Wind">
+    <div class="wind-panel-inner">
+      <div class="wind-dir-group">
+        <span class="field-label">Wind Direction</span>
+        <div class="dir-grid" id="dirGrid"></div>
+      </div>
+      <div class="wind-speed-group">
+        <div class="field">
+          <label>Strength</label>
+          <div class="input-row">
+            <input type="number" id="windSpeed" min="0" max="30" value="5" step="0.5">
+            <span class="unit">m/s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shot -->
+  <div class="panel" data-label="Shot">
+    <div class="compass-row">
+      <div class="compass-wrap">
+        <canvas id="compass" width="88" height="88"></canvas>
+      </div>
+      <div class="compass-inputs">
+        <div class="field">
+          <label>Shot Bearing (Azimuth)</label>
+          <div class="input-row">
+            <input type="number" id="shotDir" min="0" max="360" value="0" step="1">
+            <span class="unit">°</span>
+          </div>
+        </div>
+        <div class="slider-field">
+          <label>
+            Range
+            <span class="range-entry">
+              <input type="number" id="distInput" min="50" max="2000" value="1000" step="1" inputmode="numeric" aria-label="Range in metres">
+              <span class="range-unit">m</span>
+            </span>
+          </label>
+          <input type="range" id="distSlider" min="50" max="2000" value="1000" step="1">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-panel">
+    <div class="result-main">
+      <span class="result-label">Correction</span>
+      <span class="result-value" id="milVal">—</span>
+      <span class="result-unit">MIL</span>
+    </div>
+    <div class="direction-indicator">
+      <span class="dir-arrow" id="dirArrow">—</span>
+      <span class="dir-text"  id="dirText">—</span>
+    </div>
+    <div class="result-sub">
+      <div class="sub-item">
+        <span class="lbl">Crosswind Bit</span>
+        <span class="val" id="crossVal">—</span>
+      </div>
+      <div class="sub-item">
+        <span class="lbl">Sideways Drift</span>
+        <span class="val" id="lateralMeters">—</span>
+      </div>
+      <div class="sub-item">
+        <span class="lbl">Time o Flight ≈</span>
+        <span class="val" id="tofVal">—</span>
+      </div>
+    </div>
+    <div class="zero-note" id="ammoNote">—</div>
+  </div>
+
+  <footer>Wind comes fae the stated direction &nbsp;·&nbsp; 0°=N · 90°=E · 180°=S · 270°=W</footer>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// AMMO PROFILES
+// v0       = muzzle velocity (m/s)
+// bc       = ballistic coefficient (G1)
+// rfFactor = Reforger engine wind multiplier vs real-world
+// shortRangeFactor = extra multiplier below 500m (Reforger quirk for high-BC rounds)
+// ─────────────────────────────────────────────
+const AMMO_PROFILES = [
+  {
+    id: 'm211',
+    gun:  'M200',
+    ammo: 'M211 .408',
+    v0:   914,     // CheyTac factory ~914 m/s
+    bc:   0.98,    // G1 BC for 419gr LRX
+    rfFactor: 0.90,
+    // M211 under-drifts in Reforger at short range — engine applies full wind
+    // but bullet is so fast the tof-based calc over-predicts; empirical correction:
+    shortRangeFactor: 0.55,  // applies below 500m
+    shortRangeThreshold: 500,
+    note: 'M200 · .408 CheyTac · v₀ 914 m/s · BC 0.98'
+  },
+  {
+    id: 'm107',
+    gun:  'M107',
+    ammo: 'M33 .50',
+    v0:   887,     // M33 Ball ~887 m/s
+    bc:   0.67,    // G1 BC for 647gr M33
+    rfFactor: 0.90,
+    shortRangeFactor: 1.0,
+    shortRangeThreshold: 0,
+    note: 'M107 · .50 BMG M33 · v₀ 887 m/s · BC 0.67'
+  },
+  {
+    id: 'm40',
+    gun:  'M40A5',
+    ammo: 'M118',
+    v0:   820,
+    bc:   0.44,
+    rfFactor: 0.90,
+    shortRangeFactor: 1.0,
+    shortRangeThreshold: 0,
+    note: 'M40A5 · 7.62×51 M118 · v₀ 820 m/s · BC 0.44'
+  },
+  {
+    id: 'dvl',
+    gun:  'DVL-10',
+    ammo: 'M118',
+    v0:   820,
+    bc:   0.44,
+    rfFactor: 0.90,
+    shortRangeFactor: 1.0,
+    shortRangeThreshold: 0,
+    note: 'DVL-10 · 7.62×51 M118 · v₀ 820 m/s · BC 0.44'
+  },
+];
+
+let selectedAmmo = AMMO_PROFILES[0];
+
+// Build ammo buttons
+const ammoGrid = document.getElementById('ammoGrid');
+AMMO_PROFILES.forEach(p => {
+  const btn = document.createElement('button');
+  btn.className = 'ammo-btn' + (p.id === selectedAmmo.id ? ' active' : '');
+  btn.innerHTML = `<span class="gun">${p.gun}</span><span class="ammo">${p.ammo}</span>`;
+  btn.addEventListener('click', () => {
+    selectedAmmo = p;
+    document.querySelectorAll('.ammo-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    calculate();
+  });
+  ammoGrid.appendChild(btn);
+});
+
+// ─────────────────────────────────────────────
+// WIND DIRECTION BUTTONS
+// ─────────────────────────────────────────────
+const DIRS = [
+  { label: 'N',  deg: 0   }, { label: 'NE', deg: 45  },
+  { label: 'E',  deg: 90  }, { label: 'SE', deg: 135 },
+  { label: 'S',  deg: 180 }, { label: 'SW', deg: 225 },
+  { label: 'W',  deg: 270 }, { label: 'NW', deg: 315 },
+];
+let selectedWindDeg = 270;
+
+const dirGrid = document.getElementById('dirGrid');
+DIRS.forEach(d => {
+  const btn = document.createElement('button');
+  btn.className = 'dir-btn' + (d.deg === selectedWindDeg ? ' active' : '');
+  btn.textContent = d.label;
+  btn.addEventListener('click', () => {
+    selectedWindDeg = d.deg;
+    document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    calculate();
+  });
+  dirGrid.appendChild(btn);
+});
+
+// ─────────────────────────────────────────────
+// COMPASS DRAW
+// ─────────────────────────────────────────────
+const canvas = document.getElementById('compass');
+const ctx    = canvas.getContext('2d');
+
+function drawCompass(windDeg, shotDeg) {
+  const W = canvas.width, H = canvas.height, cx = W/2, cy = H/2, r = 38;
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.strokeStyle = '#1e2b1e'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  for (let i = 0; i < 8; i++) {
+    const a = (i*45 - 90) * Math.PI / 180;
+    ctx.beginPath();
+    ctx.moveTo(cx + (r-5)*Math.cos(a), cy + (r-5)*Math.sin(a));
+    ctx.lineTo(cx + r*Math.cos(a),     cy + r*Math.sin(a));
+    ctx.strokeStyle = '#2a3d2a'; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  // wind from-arrow
+  const wRad = (windDeg - 90) * Math.PI / 180;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + (r-10)*Math.cos(wRad), cy + (r-10)*Math.sin(wRad));
+  ctx.strokeStyle = '#5a7a5a'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx - 10*Math.cos(wRad), cy - 10*Math.sin(wRad), 3, 0, Math.PI*2);
+  ctx.fillStyle = '#5a7a5a'; ctx.fill();
+
+  // shot arrow
+  const sRad = (shotDeg - 90) * Math.PI / 180;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + (r-6)*Math.cos(sRad), cy + (r-6)*Math.sin(sRad));
+  ctx.strokeStyle = '#4cff6e'; ctx.lineWidth = 2; ctx.stroke();
+  const ax = cx + (r-6)*Math.cos(sRad), ay = cy + (r-6)*Math.sin(sRad);
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(ax - 6*Math.cos(sRad-0.5), ay - 6*Math.sin(sRad-0.5));
+  ctx.lineTo(ax - 6*Math.cos(sRad+0.5), ay - 6*Math.sin(sRad+0.5));
+  ctx.closePath(); ctx.fillStyle = '#4cff6e'; ctx.fill();
+
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2);
+  ctx.fillStyle = '#4cff6e'; ctx.fill();
+
+  ctx.font = '8px "Share Tech Mono"';
+  ctx.fillStyle = '#2a3d2a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  [['N',0],['E',90],['S',180],['W',270]].forEach(([l,d]) => {
+    const a = (d-90)*Math.PI/180, lr = r+8;
+    ctx.fillText(l, cx + lr*Math.cos(a), cy + lr*Math.sin(a));
+  });
+}
+
+// ─────────────────────────────────────────────
+// BALLISTIC MODEL
+// Uses simplified piecewise drag based on G1 BC.
+// tof integrates velocity decay: v(t) ≈ v0 * e^(-k*t) where k = rho*A*Cd/(2m)
+// For our purposes: k ≈ 0.0015 / bc  (empirical fit for supersonic rifle rounds)
+// This gives a much better short-range tof than a linear model.
+// ─────────────────────────────────────────────
+function toRad(deg) { return deg * Math.PI / 180; }
+
+function calcTOF(dist, v0, bc) {
+  // Exponential velocity decay model
+  // v(x) = v0 * exp(-k * x / v0) — approximation
+  // Integrated: tof = (1/k) * (1 - exp(-k * dist / v0)) ... but simpler:
+  // k empirically: ~0.0015 / bc for G1 rounds in standard conditions
+  const k = 0.0015 / bc;
+  // tof via numerical integration (10 steps, good enough)
+  let t = 0, v = v0, x = 0, dt = 0.001;
+  let step = dist / 200;
+  for (let xi = 0; xi < dist; xi += step) {
+    const drag = k * v * v;
+    const dv = -drag * step / v; // dv over distance step
+    const dt_step = step / Math.max(v + dv/2, 1);
+    t += dt_step;
+    v = Math.max(v + dv, 100); // floor at 100 m/s
+  }
+  return t;
+}
+
+function calculate() {
+  const p       = selectedAmmo;
+  const windDeg = selectedWindDeg;
+  const windMs  = parseFloat(document.getElementById('windSpeed').value) || 0;
+  const shotDeg = parseFloat(document.getElementById('shotDir').value)   || 0;
+  const distInput  = document.getElementById('distInput');
+  const distSlider = document.getElementById('distSlider');
+  const typedDist  = parseInt(distInput.value, 10);
+  const dist       = Number.isFinite(typedDist)
+    ? Math.max(50, Math.min(2000, typedDist))
+    : (parseInt(distSlider.value, 10) || 1000);
+
+  document.getElementById('ammoNote').innerHTML = 'Reckoned aff: <span>' + p.note + '</span>';
+
+  drawCompass(windDeg, shotDeg);
+
+  // Cross-wind component
+  const relAngle  = toRad(windDeg - shotDeg);
+  const crossWind = windMs * Math.sin(relAngle);
+
+  // Time of flight
+  const tof = calcTOF(dist, p.v0, p.bc);
+
+  // Short-range correction factor
+  let rangeFactor = p.rfFactor;
+  if (dist < p.shortRangeThreshold) {
+    // Linear blend: full shortRangeFactor at 0m, rfFactor at threshold
+    const blend = dist / p.shortRangeThreshold;
+    rangeFactor = p.shortRangeFactor + blend * (p.rfFactor - p.shortRangeFactor);
+  }
+
+  const lateralM = crossWind * tof * rangeFactor;
+  const mils     = lateralM / (dist / 1000);
+
+  document.getElementById('milVal').textContent      = Math.abs(mils).toFixed(2);
+  document.getElementById('crossVal').textContent    = crossWind.toFixed(2) + ' m/s';
+  document.getElementById('lateralMeters').textContent = lateralM.toFixed(2) + ' m';
+  document.getElementById('tofVal').textContent      = tof.toFixed(3) + ' s';
+
+  const elArrow = document.getElementById('dirArrow');
+  const elText  = document.getElementById('dirText');
+
+  if (Math.abs(mils) < 0.01) {
+    elArrow.textContent = '◆';
+    elText.textContent  = "nae wind drift, ye're grand";
+    elArrow.style.color = '#5a7a5a';
+  } else if (mils > 0) {
+    elArrow.textContent = '←';
+    elText.textContent  = 'haud yer sights tae the LEFT';
+    elArrow.style.color = '#4cff6e';
+  } else {
+    elArrow.textContent = '→';
+    elText.textContent  = 'haud yer sights tae the RIGHT';
+    elArrow.style.color = '#4cff6e';
+  }
+}
+
+// Events
+['windSpeed','shotDir'].forEach(id =>
+  document.getElementById(id).addEventListener('input', calculate)
+);
+const distSlider = document.getElementById('distSlider');
+const distInput  = document.getElementById('distInput');
+
+distSlider.addEventListener('input', () => {
+  distInput.value = distSlider.value;
+  calculate();
+});
+
+distInput.addEventListener('input', () => {
+  const value = parseInt(distInput.value, 10);
+  if (Number.isFinite(value)) {
+    distSlider.value = Math.max(50, Math.min(2000, value));
+    calculate();
+  }
+});
+
+function commitDistance() {
+  let value = parseInt(distInput.value, 10);
+  if (!Number.isFinite(value)) value = parseInt(distSlider.value, 10) || 1000;
+  value = Math.max(50, Math.min(2000, value));
+  distInput.value = value;
+  distSlider.value = value;
+  calculate();
+}
+
+distInput.addEventListener('blur', commitDistance);
+distInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    distInput.blur();
+  }
+});
+
+document.getElementById('shotDir').addEventListener('blur', () => {
+  let v = parseFloat(document.getElementById('shotDir').value) % 360;
+  if (v < 0) v += 360;
+  document.getElementById('shotDir').value = Math.round(v);
+  calculate();
+});
+
+calculate();
+</script>
+</body>
+</html>
